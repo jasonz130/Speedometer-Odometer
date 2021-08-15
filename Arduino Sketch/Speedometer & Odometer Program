@@ -1,0 +1,69 @@
+#include <Wire.h> 
+#include <LiquidCrystal_I2C.h>
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+float radius_of_wheel = 0.3302;  //Radius of wheel (in meters)
+volatile byte rotation; // variale for interrupt fun must be volatile
+float timetaken,rpm;
+float v;
+float distanceTotal;
+unsigned long pevtime;
+unsigned long currentTime;
+unsigned long dtime;
+int rotationTotal;
+ 
+void setup()
+ {
+   attachInterrupt(0, magnet_detect, RISING); //Pin 2 of arduino used as interrupt and magnet_detect is called for each interrupt
+   rotation = rpm = pevtime = 0; //Initialize all variable to zero
+   Serial.begin(9600);
+   dtime = millis();
+   pevtime = millis();
+   lcd.begin();
+   lcd.backlight();   
+ }
+ 
+ 
+void loop()
+{
+  currentTime = millis();
+  
+//To drop to 0 if vehicle stopped
+//No magnet found for 3500ms
+  if(currentTime-dtime>3500) {
+  rpm= v = 0.000; // make rpm and velocity as 0
+  dtime=currentTime;
+  lcd.clear(); //clear everything, instantaneous speed is equated to 0
+  delay(200);
+  
+  }
+  v = radius_of_wheel * rpm * 0.37699;
+
+
+  lcd.setCursor(0,0);
+  lcd.print("Speed: ");
+  lcd.setCursor(7,0);
+  lcd.print(v);
+  lcd.setCursor(13,0);
+  lcd.print("kmh");
+
+  lcd.setCursor(0,1);
+  lcd.print("tDist: ");
+  lcd.print(distanceTotal);
+  lcd.setCursor(13,1);
+  lcd.print("km");
+}
+
+void magnet_detect() //Called whenever a magnet is detected
+{
+  rotation++;
+  rotationTotal += 1;
+  distanceTotal = rotationTotal * 3.14*0.0006604;
+  dtime=currentTime;
+  if(rotation>=2) {
+    timetaken = currentTime-pevtime; //time in ms for two rotations
+    rpm=60000/timetaken;    //formulae to calculate rpm
+    pevtime = currentTime;
+    rotation=0;
+  }
+}
